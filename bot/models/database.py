@@ -12,10 +12,6 @@ def start_database():
         db.create_tables(
             [User,
              Application,
-             SpecialOffer,
-             CurrencyRate,
-             UsefulVideo,
-             FAQ,
              CommandUserStats,
              CommandStats,
              UserMessage,

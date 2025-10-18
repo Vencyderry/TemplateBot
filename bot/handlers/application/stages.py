@@ -1,21 +1,25 @@
-from typing import List
-
-from bot.utils import Handlers, Stages, Stage
+from bot.utils import Handlers, BaseStages
 
 
-class ApplicationStages:
-    _stages = Stages(Handlers.APPLICATION)
+class ApplicationStages(BaseStages):
+    """
+    Stages для хендлера Application.
 
-    MAIN: Stage = _stages.get_main_stage()
-    BACK: Stage = _stages.get_back_stage()
-    ALL: List[Stage] = _stages.get_all_stages()
+    Автоматически создаются:
+    - MAIN: 'application'
+    - BACK: 'application:back'
+    - ALL: список всех stages
+    """
+    __handler__ = Handlers.APPLICATION
 
-    NAME: Stage = _stages.get_state_with_stage("name")
-    NUMBER: Stage = _stages.get_state_with_stage("number")
-    DESCRIPTION: Stage = _stages.get_state_with_stage("description")
+    # Кастомные stages для заполнения заявки
+    NAME = None
+    NUMBER = None
+    DESCRIPTION = None
 
 
 class ApplicationService:
-    stages: ApplicationStages = ApplicationStages()
+    """Сервис для работы с ApplicationStages"""
+    stages = ApplicationStages
 
 

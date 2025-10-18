@@ -2,7 +2,7 @@ from telegrinder import Message
 from telegrinder.bot.rules import IsGroup
 from telegrinder.rules import Text
 
-from bot.core import BotApplication, Dispatch
+from bot.core import BotApplication, Dispatch, CommandExecutionMode
 from bot.utils import Handlers
 from bot.models.models import User
 
@@ -12,7 +12,7 @@ dp = Dispatch(title=Handlers.ADMIN_INFO,
 
 
 @dp.message(Text("/info") & IsGroup())
-@dp.wrap_handler(is_full_command=True)
+@dp.wrap_handler(mode=CommandExecutionMode.FULL)
 async def admin_info(event: Message, app: BotApplication, user: User):
     # Основная информация о чате и отправителе
     chat = event.chat
