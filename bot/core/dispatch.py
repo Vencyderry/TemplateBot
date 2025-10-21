@@ -132,7 +132,7 @@ class DefaultEventExtractor:
     ) -> Tuple[Optional[TelegrinderUser], Optional[TelegrinderChat]]:
         """Извлекает from_user и chat из Message или CallbackQuery."""
         if isinstance(event, Message):
-            return event.from_.unwrap(), event.chat
+            return event.from_.unwrap(), event.chat  # type: ignore
         elif isinstance(event, CallbackQuery):
             return event.from_, event.chat.unwrap()
         return None, None

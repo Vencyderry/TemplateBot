@@ -1,4 +1,7 @@
+from typing import ClassVar
+
 from bot.utils import Handlers, BaseStages
+from bot.utils.stages import Stage
 
 
 class ApplicationStages(BaseStages):
@@ -12,10 +15,9 @@ class ApplicationStages(BaseStages):
     """
     __handler__ = Handlers.APPLICATION
 
-    # Кастомные stages для заполнения заявки
-    NAME = None
-    NUMBER = None
-    DESCRIPTION = None
+    NAME: ClassVar[Stage]
+    NUMBER: ClassVar[Stage]
+    DESCRIPTION: ClassVar[Stage]
 
 
 class ApplicationService:

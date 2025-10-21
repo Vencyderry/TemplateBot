@@ -1,116 +1,102 @@
-from typing import List, Union, Type, Dict, Any
+"""
+Система управления stages для Telegram bot handlers.
+"""
 
-from telegrinder import Message, CallbackQuery, ABCRule
+from typing import ClassVar, List, Union
+
+from telegrinder import ABCRule, CallbackQuery, Message
 from telegrinder.bot.rules import CallbackDataEq
 
 from bot.rules.rules import StateRule
 
 
 class Stage(ABCRule):
+    """Stage (состояние) в flow handler'а."""
+
     def __init__(self, name: str):
         self.name = name
         super().__init__()
 
     def __str__(self) -> str:
-        """Return stage name as string for assignments like user.current_state = stage"""
+        """Возвращает имя для user.state = stage."""
         return self.name
 
+    def __repr__(self) -> str:
+        return f"Stage({self.name!r})"
+
     def check(self, event: Union[Message, CallbackQuery]) -> bool:
+        """Проверяет, соответствует ли событие этому stage."""
         if isinstance(event, CallbackQuery):
             rule = CallbackDataEq(self.name)
             payload = event.data.unwrap_or_none()
             if payload is None:
-                raise Exception("Event data payload is None")
+                raise ValueError("Event data payload is None")
             return rule.check(payload)
         elif isinstance(event, Message):
             rule = StateRule(self.name)
-            result = rule.check(event)
-            return result
+            return rule.check(event)
         return False
 
 
-class Stages:
-    def __init__(self, state: str):
-        self.state: str = state
-        self.stages: List[Stage] = []
-
-    def get_state_with_stage(self, stage):
-        stage = Stage(self.state + ":" + stage)
-        self.stages.append(stage)
-        return stage
-
-    def get_main_stage(self):
-        return Stage(self.state)
-
-    def get_back_stage(self):
-        return self.get_state_with_stage("back")
-
-    def get_all_stages(self):
-        return self.stages
-
-
-class StagesMeta(type):
+class BaseStages:
     """
-    Метакласс для автоматической генерации stages из атрибутов класса.
-    Преобразует строковые атрибуты в объекты Stage.
-    """
-    def __new__(mcs, name: str, bases: tuple, namespace: Dict[str, Any]):
-        # Получаем handler_name из атрибута класса
-        handler_name = namespace.get('__handler__')
-
-        if handler_name is None:
-            # Если класс не определяет __handler__, просто создаем обычный класс
-            return super().__new__(mcs, name, bases, namespace)
-
-        # Создаем экземпляр Stages для управления stage'ами
-        stages_manager = Stages(handler_name)
-
-        # Автоматически создаем стандартные stages
-        namespace['MAIN'] = stages_manager.get_main_stage()
-        namespace['BACK'] = stages_manager.get_back_stage()
-
-        # Собираем все stage-атрибуты (строки в верхнем регистре)
-        stage_names = []
-        for attr_name, attr_value in list(namespace.items()):
-            # Пропускаем служебные атрибуты и уже созданные
-            if attr_name.startswith('_') or attr_name in ('MAIN', 'BACK'):
-                continue
-
-            # Если атрибут - это строка или None, создаем для него Stage
-            if isinstance(attr_value, str) or attr_value is None:
-                # Используем имя атрибута в lowercase как имя stage
-                stage_name = attr_name.lower()
-                namespace[attr_name] = stages_manager.get_state_with_stage(stage_name)
-                stage_names.append(attr_name)
-
-        # Добавляем список всех stages
-        namespace['ALL'] = stages_manager.get_all_stages()
-        namespace['_stages'] = stages_manager
-        namespace['_stage_names'] = stage_names
-
-        return super().__new__(mcs, name, bases, namespace)
-
-
-class BaseStages(metaclass=StagesMeta):
-    """
-    Базовый класс для декларативного определения stages.
+    Базовый класс для stages с полной поддержкой IDE.
 
     Использование:
 
-    class MyHandlerStages(BaseStages):
-        __handler__ = 'my_handler'
+    ```python
+    class OrderStages(BaseStages):
+        __handler__ = "orders"
 
-        # Автоматически создаются MAIN и BACK
+        # Определяем кастомные stages (IDE их видит!)
+        PRODUCT_NAME: ClassVar[Stage]
+        QUANTITY: ClassVar[Stage]
+        CONFIRM: ClassVar[Stage]
 
-        # Определяем кастомные stages (имя атрибута станет именем stage)
-        NAME = None      # Создаст stage 'my_handler:name'
-        EMAIL = None     # Создаст stage 'my_handler:email'
-        PHONE = None     # Создаст stage 'my_handler:phone'
-
-    Доступ:
-        MyHandlerStages.MAIN   -> 'my_handler'
-        MyHandlerStages.NAME   -> 'my_handler:name'
-        MyHandlerStages.ALL    -> [все stages]
+    # Автоматически доступны:
+    OrderStages.MAIN          # Stage("orders")
+    OrderStages.BACK          # Stage("orders:back")
+    OrderStages.PRODUCT_NAME  # Stage("orders:product_name")
+    OrderStages.QUANTITY      # Stage("orders:quantity")
+    OrderStages.CONFIRM       # Stage("orders:confirm")
+    OrderStages.ALL           # список всех stages
+    ```
     """
-    __handler__ = None  # Должен быть переопределен в подклассах
 
+    # Эти атрибуты будут у ВСЕХ подклассов
+    __handler__: ClassVar[str]
+    MAIN: ClassVar[Stage]
+    BACK: ClassVar[Stage]
+    ALL: ClassVar[List[Stage]]
+
+    def __init_subclass__(cls, **kwargs):
+        """Автоматически создает stages при наследовании."""
+        super().__init_subclass__(**kwargs)
+
+        # Получаем имя handler'а
+        handler_name = getattr(cls, '__handler__', None)
+        if handler_name is None:
+            return
+
+        # Создаем MAIN и BACK
+        cls.MAIN = Stage(handler_name)
+        cls.BACK = Stage(f"{handler_name}:back")
+
+        # Собираем кастомные stages
+        custom_stages: List[Stage] = [cls.BACK]
+
+        # Ищем все аннотированные атрибуты
+        annotations = getattr(cls, '__annotations__', {})
+        for attr_name in annotations:
+            # Пропускаем служебные
+            if attr_name.startswith('_') or attr_name in ('MAIN', 'BACK', 'ALL', '__handler__'):
+                continue
+
+            # Создаем stage
+            stage_name = attr_name.lower()
+            stage = Stage(f"{handler_name}:{stage_name}")
+            setattr(cls, attr_name, stage)
+            custom_stages.append(stage)
+
+        # Сохраняем все stages
+        cls.ALL = custom_stages

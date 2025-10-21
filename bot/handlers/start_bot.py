@@ -2,6 +2,7 @@ from telegrinder import InlineKeyboard, InlineButton, Message, CallbackQuery
 from telegrinder.rules import Text, IsPrivate, CallbackDataEq
 
 from bot.core import BotApplication, Dispatch
+from bot.core.dispatch import CommandExecutionMode
 from bot.models.models import User
 from bot.utils import Handlers
 
@@ -15,7 +16,7 @@ kb = (
 
 
 @dp.message(Text(["/start", "/menu"], ignore_case=True) & IsPrivate())
-@dp.wrap_handler(is_full_command=True)
+@dp.wrap_handler(mode=CommandExecutionMode.FULL)
 async def start_message(event: Message, app: BotApplication, user: User) -> None:
     user.current_state = "start"
     response = await event.answer(
@@ -27,7 +28,7 @@ async def start_message(event: Message, app: BotApplication, user: User) -> None
 
 
 @dp.callback_query(CallbackDataEq("start") & IsPrivate())
-@dp.wrap_handler(is_full_command=True)
+@dp.wrap_handler(mode=CommandExecutionMode.FULL)
 async def start_cq(event: CallbackQuery, app: BotApplication, user: User) -> None:
     user.current_state = "start"
     await app.menu_manager.clean_chat(event, user)  # Чистим чат от предыдущих сообщений
