@@ -4,14 +4,26 @@ from bot.core import BotApplication, Dispatch, CommandExecutionMode
 from bot.models.models import User
 from bot.utils import Handlers
 from bot.handlers.application.stages import ApplicationService
+from bot.rules.rules import StartWithParam
 
 dp = Dispatch(title=Handlers.APPLICATION,
               description="Команда заполнения заявки")
 
 
+@dp.message(StartWithParam(handler=Handlers.APPLICATION))
+@dp.wrap_handler(mode=CommandExecutionMode.MAIN)
+async def application_start_from_deeplink(event: Message, app: BotApplication, user: User):
+    """Обработчик /start application (переход из канала по URL кнопке)"""
+    user.current_state = ApplicationService.stages.NAME
+    response = await event.answer(text="Main State")
+    await app.menu_manager.clean_chat(event, user, delete_menu_message=True)
+    app.menu_manager.set_menu_message_id(response.unwrap(), user)
+
+
 @dp.callback_query(ApplicationService.stages.MAIN)
 @dp.wrap_handler(mode=CommandExecutionMode.MAIN)
-async def application_start(event: CallbackQuery, app: BotApplication, user: User):
+async def application_start_from_button(event: CallbackQuery, app: BotApplication, user: User):
+    """Обработчик inline кнопки 'Оставить заявку'"""
     await event.edit_text(text="Main State")
     user.current_state = ApplicationService.stages.NAME
 

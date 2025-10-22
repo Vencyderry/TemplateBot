@@ -95,16 +95,6 @@ def setup_logging(log_dir: str = "logs", enable_rotation: bool = True):
         format=console_format,
         level=settings.log_level,
         colorize=True,
-        backtrace=False,
-        diagnose=False,
-        filter=custom_filter
-    )
-
-    logger.add(
-        sys.stderr,
-        format=console_format,
-        level="WARNING",
-        colorize=True,
         backtrace=True,
         diagnose=True,
         filter=custom_filter

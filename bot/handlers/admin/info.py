@@ -1,5 +1,5 @@
 from telegrinder import Message
-from telegrinder.bot.rules import IsGroup
+from telegrinder.bot.rules import IsGroup, IsSuperGroup
 from telegrinder.rules import Text
 
 from bot.core import BotApplication, Dispatch, CommandExecutionMode
@@ -11,7 +11,7 @@ dp = Dispatch(title=Handlers.ADMIN_INFO,
               description="Команда выдающая информацию о событии")
 
 
-@dp.message(Text("/info") & IsGroup())
+@dp.message(Text("/info") & (IsGroup() | IsSuperGroup()))
 @dp.wrap_handler(mode=CommandExecutionMode.FULL)
 async def admin_info(event: Message, app: BotApplication, user: User):
     # Основная информация о чате и отправителе

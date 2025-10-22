@@ -78,6 +78,7 @@ class ExecutionResult:
     result: Any = None
     error: Optional[Exception] = None
     context: Optional[EventContext] = None
+    permission_denied: bool = False
 
 
 class EventExtractor(Protocol):
@@ -368,6 +369,10 @@ class Dispatch(BaseDispatch):
         if mode not in (CommandExecutionMode.FINAL, CommandExecutionMode.FULL):
             return
 
+        # Пропускаем логирование если отказано в доступе
+        if result.permission_denied:
+            return
+
         # Логируем выполнение
         await self._logger.log(self.title, context, result)
 
@@ -411,6 +416,7 @@ class Dispatch(BaseDispatch):
 
                         # Проверяем права доступа
                         if not await self._check_permissions(context, permission):
+                            result.permission_denied = True
                             return None
 
                         # Обновляем состояние пользователя
@@ -430,12 +436,6 @@ class Dispatch(BaseDispatch):
                 except Exception as e:
                     result.error = e
                     result.success = False
-
-                    # Логируем ошибку
-                    if result.context:
-                        result.execution_time = time.time() - start_time
-                        await self._logger.log(self.title, result.context, result)
-
                     raise
 
                 finally:
