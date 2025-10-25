@@ -8,6 +8,7 @@ from bot.core.components import create_bot_components
 from bot.middlewares.registry import Middlewares
 from bot.utils import setup_logging, LoggerHandler
 from bot.models.database import start_database
+from bot.utils.logger import ComponentLogger
 
 
 class BotApplication:
@@ -67,7 +68,7 @@ class BotApplication:
     def setup_logging(self) -> 'BotApplication':
         """Настройка логирования."""
         setup_logging(self.log_dir)
-        self.logger.info("Starting JapanLife Bot...")
+        self.logger.info("Starting Bot...")
         return self
 
     def setup_database(self) -> 'BotApplication':
@@ -84,13 +85,13 @@ class BotApplication:
         """
         self._handlers = handlers
 
-        LoggerHandler.log_pre_loading_handler(handlers)
+        ComponentLogger.log_pre_loading_handlers(handlers)
 
         for dp in handlers:
             self.bot.dispatch.message.handlers.extend(dp.message.handlers)
             self.bot.dispatch.callback_query.handlers.extend(dp.callback_query.handlers)
 
-        LoggerHandler.log_post_loading_handler(handlers)
+        ComponentLogger.log_post_loading_handlers(handlers)
 
         return self
 
@@ -98,6 +99,8 @@ class BotApplication:
         """Настройка middleware."""
 
         self._middlewares = middlewares
+
+        ComponentLogger.log_middlewares(middlewares.message, middlewares.callback_query)
 
         # Добавляем middleware для сообщений
         for middleware in middlewares.message:
@@ -120,13 +123,26 @@ class BotApplication:
         self.bot.loop_wrapper.add_task(task)
         return self
 
-    def setup(self, handlers: Optional[List[Dispatch]] = None, middlewares: Middlewares = None) -> 'BotApplication':
+    def setup_background_tasks(self, tasks: List[Callable]) -> 'BotApplication':
+        ComponentLogger.log_background_tasks(tasks)
+
+        for task in tasks:
+            self.add_background_task(task)
+
+        return self
+
+    def setup(self,
+              handlers: Optional[List[Dispatch]] = None,
+              middlewares: Middlewares = None,
+              tasks: List[Callable] = None
+              ) -> 'BotApplication':
         """
         Полная настройка приложения.
 
         Args:
             handlers: Список обработчиков (опционально)
             middlewares: Список предобработчиков (опционально)
+            tasks: Список доп задач (опционально)
         """
         if self._is_setup:
             self.logger.warning("Application already setup. Skipping...")
@@ -140,6 +156,9 @@ class BotApplication:
 
         if middlewares is not None:
             self.setup_middlewares(middlewares)
+
+        if tasks is not None:
+            self.setup_background_tasks(tasks)
 
         self._is_setup = True
         self.logger.success("Bot successfully configured")

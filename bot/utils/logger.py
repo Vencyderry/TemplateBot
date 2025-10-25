@@ -127,16 +127,18 @@ def setup_logging(log_dir: str = "logs", enable_rotation: bool = True):
     )
 
 
-class LoggerHandler:
+class ComponentLogger:
+    """Универсальный логгер для компонентов приложения (handlers, middlewares, tasks)"""
 
+    # --- Handlers ---
     @staticmethod
-    def log_pre_loading_handler(handlers: List[Dispatch]):
+    def log_pre_loading_handlers(handlers: List[Dispatch]):
         """Логирует начало загрузки хендлеров"""
         logger.info("Starting handler setup...", section="HANDLERS")
-        LoggerHandler.log_handler_loading(handlers)
+        ComponentLogger._log_handler_details(handlers)
 
     @staticmethod
-    def log_post_loading_handler(handlers: List[Dispatch]):
+    def log_post_loading_handlers(handlers: List[Dispatch]):
         """Логирует завершение загрузки хендлеров"""
         logger.success(f"Successfully loaded {len(handlers)} dispatchers", section="HANDLERS")
 
@@ -149,32 +151,59 @@ class LoggerHandler:
         )
 
     @staticmethod
-    def log_handler_loading(handlers: List[Dispatch]):
-        """Логирует информацию о загружаемых хендлерах"""
+    def _log_handler_details(handlers: List[Dispatch]):
+        """Логирует детальную информацию о загружаемых хендлерах"""
         for i, dp in enumerate(handlers):
-            # Получаем метаданные диспетчера
             dp_name = getattr(dp, 'title', f'Dispatcher_{i}')
-
-            log_message_dispatcher = f"Loading handlers <"
-
-            # Логируем количество хендлеров каждого типа
             message_count = len(dp.message.handlers)
             callback_count = len(dp.callback_query.handlers)
 
-            if message_count >= 0:
-                log_message_dispatcher += f"{message_count} message"
-            if callback_count >= 0:
-                log_message_dispatcher += f"|{callback_count} callback"
-            log_message_dispatcher += f"> dispatcher - [{dp_name}]"
-            logger.success(log_message_dispatcher, section="HANDLERS")
+            log_message = f"Loading handlers <{message_count} message|{callback_count} callback> dispatcher - [{dp_name}]"
+            logger.success(log_message, section="HANDLERS")
+
+    # --- Middlewares ---
+    @staticmethod
+    def log_middlewares(message_middlewares: List, callback_middlewares: List):
+        """Логирует загрузку middlewares"""
+        logger.info("Starting middleware setup...", section="MIDDLEWARES")
+
+        # Логируем message middlewares
+        for middleware in message_middlewares:
+            middleware_name = middleware.__class__.__name__
+            logger.success(f"Loading message middleware: {middleware_name}", section="MIDDLEWARES")
+
+        # Логируем callback middlewares
+        for middleware in callback_middlewares:
+            middleware_name = middleware.__class__.__name__
+            logger.success(f"Loading callback middleware: {middleware_name}", section="MIDDLEWARES")
+
+        # Итоговая статистика
+        logger.success(
+            f"Successfully loaded {len(message_middlewares)} message, {len(callback_middlewares)} callback middlewares",
+            section="MIDDLEWARES"
+        )
+
+    # --- Background Tasks ---
+    @staticmethod
+    def log_background_tasks(tasks: List):
+        """Логирует регистрацию фоновых задач"""
+        logger.info("Registering background tasks...", section="TASKS")
+
+        for task in tasks:
+            task_name = getattr(task, '__name__', str(task))
+            logger.success(f"Registered task: {task_name}", section="TASKS")
+
+        logger.success(f"Successfully registered {len(tasks)} background tasks", section="TASKS")
+
+
+# Обратная совместимость
+class LoggerHandler(ComponentLogger):
+    """Deprecated: используй ComponentLogger"""
 
     @staticmethod
-    def get_dispatcher_info(dp: Dispatch, index: int) -> dict:
-        """Получает информацию о диспетчере"""
-        return {
-            'title': getattr(dp, 'title', f'Dispatcher_{index}'),
-            'description': getattr(dp, 'description', 'No description'),
-            'folder': getattr(dp, 'folder', 'unknown'),
-            'message_handlers': len(dp.message.handlers),
-            'callback_handlers': len(dp.callback_query.handlers)
-        }
+    def log_pre_loading_handler(handlers: List[Dispatch]):
+        ComponentLogger.log_pre_loading_handlers(handlers)
+
+    @staticmethod
+    def log_post_loading_handler(handlers: List[Dispatch]):
+        ComponentLogger.log_post_loading_handlers(handlers)
